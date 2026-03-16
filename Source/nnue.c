@@ -552,6 +552,10 @@ int nnue_evaluate(thread_t *thread, position_t *pos, accumulator_t *accumulator)
   uint16_t nnz_indices[NNZ_MAX + 16];
   int nnz_count = 0;
 
+#if !defined(USE_AVX512ICL)
+#error arch guard
+#endif
+
 #if defined(USE_AVX512ICL)
   {
     const veci_t zero_vec = zero();
