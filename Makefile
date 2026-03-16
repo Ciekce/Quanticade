@@ -9,7 +9,7 @@ NATIVE       = -march=native
 AVX2FLAGS    = -DUSE_AVX2 -DUSE_SIMD -mavx2 -mbmi
 BMI2FLAGS    = -DUSE_AVX2 -DUSE_SIMD -mavx2 -mbmi -mbmi2
 AVX512FLAGS  = -DUSE_AVX512 -DUSE_SIMD -mavx512f -mavx512bw
-AVX512ICLFLAGS  = -DUSE_AVX512 -DUSE_SIMD -mavx512f -mavx512bw -mavx512cd -mavx512vl -mavx512dq -mavx512ifma -mavx512vbmi -mavx512vbmi2 -mavx512vpopcntdq -mavx512bitalg -mavx512vnni -mvpclmulqdq -mgfni -mvaes
+AVX512ICLFLAGS  = $(AVX512FLAGS) -DUSE_AVX512ICL -mavx512cd -mavx512vl -mavx512dq -mavx512ifma -mavx512vbmi -mavx512vbmi2 -mavx512vpopcntdq -mavx512bitalg -mavx512vnni -mvpclmulqdq -mgfni -mvaes
 NEONFLAGS    = -DU#SE_NEON -DUSE_SIMD -flax-vector-conversions
 
 .DEFAULT_GOAL := all

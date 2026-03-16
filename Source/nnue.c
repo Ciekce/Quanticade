@@ -31,7 +31,7 @@ struct raw_net net;
 
 const int INT8_PER_INT32 = sizeof(int) / sizeof(int8_t);
 
-#if defined(USE_SIMD) && (defined(USE_AVX2) || defined(USE_AVX512))
+#if defined(USE_SIMD) && (defined(USE_AVX2) || (defined(USE_AVX512) && !defined(USE_AVX512ICL)))
 static uint16_t NNZ_TABLE[256][8];
 
 static void init_nnz_table(void) {
@@ -246,7 +246,7 @@ void nnue_init(const char *nnue_file_name) {
       exit(1);
     }
   }
-#if defined(USE_SIMD) && (defined(USE_AVX2) || defined(USE_AVX512))
+#if defined(USE_SIMD) && (defined(USE_AVX2) || (defined(USE_AVX512) && !defined(USE_AVX512ICL)))
   init_nnz_table();
 #endif
   transpose();
@@ -549,10 +549,32 @@ int nnue_evaluate(thread_t *thread, position_t *pos, accumulator_t *accumulator)
 
   const int NNZ_MAX    = L1_SIZE / INT8_PER_INT32;
   const int I32_STRIDE = sizeof(veci_t) / sizeof(int32_t);
-  uint16_t nnz_indices[NNZ_MAX + 8];
+  uint16_t nnz_indices[NNZ_MAX + 16];
   int nnz_count = 0;
 
-#if defined(USE_AVX512)
+#if defined(USE_AVX512ICL)
+  {
+    const veci_t zero_vec = zero();
+    const veci_t inc_vec = set_epi16(32);
+    __m512i base_indices = _mm512_set_epi16(
+      31, 30, 29, 28, 27, 26, 25, 24,
+      23, 22, 21, 20, 19, 18, 17, 16,
+      15, 14, 13, 12, 11, 10, 9, 8,
+      7, 6, 5, 4, 3, 2, 1, 0
+    );
+    for (int base = 0; base < NNZ_MAX; base += I32_STRIDE * 2) {
+      uint16_t lo = (uint16_t)_mm512_cmpneq_epi32_mask(
+        _mm512_loadu_si512((const veci_t *)&l1Packs[base]), zero_vec);
+      uint16_t hi = (uint16_t)_mm512_cmpneq_epi32_mask(
+        _mm512_loadu_si512((const veci_t *)&l1Packs[base + I32_STRIDE]), zero_vec);
+      uint32_t mask = _mm512_kunpackw(hi, lo);
+      __m512i indices = _mm512_maskz_compress_epi16(mask, base_indices);
+      _mm512_storeu_si512(&nnz_indices[nnz_count], indices);
+      base_indices = _mm512_add_epi16(base_indices, inc_vec);
+      nnz_count += __builtin_popcount(mask);
+    }
+  }
+#elif defined(USE_AVX512)
   {
     const veci_t zero_vec = zero();
     for (int base = 0; base < NNZ_MAX; base += I32_STRIDE) {
